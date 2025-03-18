@@ -1,0 +1,53 @@
+This is the code for the arduino will publish the count from 1 to 6 on the web server. 
+#include <SPI.h>
+#include <WiFiNINA.h>
+// Replace with your mobile hotspot credentials
+char ssid[] = "Your_Hotspot_SSID";
+char pass[] = "Your_Hotspot_Password";
+WiFiServer server(80);
+int counter = 1; // Number counter
+void setup() {
+  Serial.begin(9600);
+  while (!Serial);
+  // Connect to WiFi
+  Serial.print("Connecting to WiFi...");
+  WiFi.begin(ssid, pass);
+  
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nWiFi Connected!");
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+  server.begin();
+}
+void loop() {
+  WiFiClient client = server.available();
+  if (client) {
+    Serial.println("Client connected.");
+    String request = client.readStringUntil('\r');
+    client.flush();
+    // Create simple HTML webpage with counter
+    String html = "<!DOCTYPE html><html>";
+    html += "<head><meta http-equiv='refresh' content='2'></head>";
+    html += "<body style='font-family:Arial; text-align:center; margin-top:50px;'>";
+    html += "<h1>Sequential Number:</h2>";
+    html += "<h1>" + String(counter) + "</h1>";
+    html += "</body></html>";
+    // Send HTTP response
+    client.println("HTTP/1.1 200 OK");
+    client.println("Content-Type: text/html");
+    client.println("Connection: close");
+    client.println();
+    client.println(html);
+    // Increment counter
+    counter++;
+    if (counter > 6) counter = 1; // reset after 6
+    delay(500); // Small delay to see increments clearly
+    client.stop();
+    Serial.println("Client disconnected.");
+    counter++;
+    if (counter > 6) counter = 1; // Reset after reaching 6
+  }
+}
