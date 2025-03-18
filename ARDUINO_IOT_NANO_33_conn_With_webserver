@@ -1,0 +1,271 @@
+%This is the code for the controlling the arduino from the outside. 
+%arduino nano33 is connected to the local network hotspot and it will create a reference server host 
+%Over there it will give access to control the arduino. 
+#include <SPI.h>
+#include <WiFiNINA.h>
+// Replace with your mobile hotspot credentials
+char ssid[] = "raj";
+char pass[] = "12345678";
+WiFiServer server(80);
+const int ledPin = 13;  // Using pin D13 as shown in the diagram
+void setup() {
+  Serial.begin(9600);
+  while (!Serial);
+  pinMode(ledPin, OUTPUT);
+  digitalWrite(ledPin, LOW); // Initially OFF
+  Serial.print("Connecting to hotspot...");
+  WiFi.begin(ssid, pass);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nWiFi Connected!");
+  Serial.print("Open this IP in your browser: ");
+  Serial.println(WiFi.localIP());
+  server.begin();
+}
+void loop() {
+  WiFiClient client = server.available();
+  if (client) {
+    Serial.println("New client connected.");
+    String request = client.readStringUntil('\r');
+    client.flush();
+    Serial.println(request);
+    // Control LED based on received request
+    if (request.indexOf("LED=1") != -1) {
+      digitalWrite(ledPin, HIGH); // Turn ON LED
+      Serial.println("LED ON");
+    } else if (request.indexOf("LED=0") != -1) {
+      digitalWrite(ledPin, LOW);  // Turn OFF LED
+      Serial.println("LED OFF");
+    }
+    // Webpage HTML content
+    String html = "<!DOCTYPE html><html>";
+    html += "<head><title>LED D13 Control</title></head>";
+    html += "<body style='font-family:Arial;text-align:center;margin-top:50px;'>";
+    html += "<h2>Arduino Nano 33 IoT LED Control</h2>";
+    html += "<form action='/' method='get'>";
+    html += "Enter LED status (0=OFF, 1=ON): <br><br>";
+    html += "<input type='text' name='LED' placeholder='0 or 1'>";
+    html += "<input type='submit' value='Submit'>";
+    html += "</form></body></html>";
+    // Send HTTP header
+    client.println("HTTP/1.1 200 OK");
+    client.println("Content-Type: text/html");
+    client.println("Connection: close");
+    client.println();
+    client.println(html);
+    delay(1);
+    client.stop();
+    Serial.println("Client disconnected.");
+  }
+}
+
+This is the code for the arduino will publish the count from 1 to 6 on the web server. 
+#include <SPI.h>
+#include <WiFiNINA.h>
+// Replace with your mobile hotspot credentials
+char ssid[] = "Your_Hotspot_SSID";
+char pass[] = "Your_Hotspot_Password";
+WiFiServer server(80);
+int counter = 1; // Number counter
+void setup() {
+  Serial.begin(9600);
+  while (!Serial);
+  // Connect to WiFi
+  Serial.print("Connecting to WiFi...");
+  WiFi.begin(ssid, pass);
+  
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nWiFi Connected!");
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+  server.begin();
+}
+void loop() {
+  WiFiClient client = server.available();
+  if (client) {
+    Serial.println("Client connected.");
+    String request = client.readStringUntil('\r');
+    client.flush();
+    // Create simple HTML webpage with counter
+    String html = "<!DOCTYPE html><html>";
+    html += "<head><meta http-equiv='refresh' content='2'></head>";
+    html += "<body style='font-family:Arial; text-align:center; margin-top:50px;'>";
+    html += "<h1>Sequential Number:</h2>";
+    html += "<h1>" + String(counter) + "</h1>";
+    html += "</body></html>";
+    // Send HTTP response
+    client.println("HTTP/1.1 200 OK");
+    client.println("Content-Type: text/html");
+    client.println("Connection: close");
+    client.println();
+    client.println(html);
+    // Increment counter
+    counter++;
+    if (counter > 6) counter = 1; // reset after 6
+    delay(500); // Small delay to see increments clearly
+    client.stop();
+    Serial.println("Client disconnected.");
+    counter++;
+    if (counter > 6) counter = 1; // Reset after reaching 6
+  }
+}
+
+Lora = working 2 relay output - but there is a glitch in the output 
+Led trigger mode is slow sometime malfunctioned 
+
+#include <WiFi.h>
+// Replace with your mobile hotspot credentials
+const char* ssid = "raj";
+const char* pass = "12345678";
+// GPIO pin definitions for Relays
+const int relayPin1 = 7; // GPIO pin 7
+const int relayPin2 = 6; // GPIO pin 6
+WiFiServer server(80);
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+  // Setup relay pins as digital outputs
+  pinMode(relayPin1, OUTPUT);
+  pinMode(relayPin2, OUTPUT);
+  digitalWrite(relayPin1, LOW); // Initially OFF
+  digitalWrite(relayPin2, LOW); // Initially OFF
+  Serial.print("Connecting to hotspot...");
+  WiFi.begin(ssid, pass);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nWiFi Connected!");
+  Serial.print("ESP32 LoRa V3 IP address: ");
+  Serial.println(WiFi.localIP());
+  server.begin();
+}
+void loop() {
+  WiFiClient client = server.available();
+  if (client) {
+    Serial.println("New client connected.");
+    String request = client.readStringUntil('\r');
+    client.flush();
+    Serial.println(request);
+    // Check request for Relay control
+    if (request.indexOf("RELAY1=1") != -1) {
+      digitalWrite(relayPin1, HIGH); // Relay 1 ON
+      Serial.println("Relay 1 ON");
+    } else if (request.indexOf("RELAY1=0") != -1) {
+      digitalWrite(relayPin1, LOW);  // Relay 1 OFF
+      Serial.println("Relay 1 OFF");
+    }
+    if (request.indexOf("RELAY2=1") != -1) {
+      digitalWrite(relayPin2, HIGH); // Relay 2 ON
+      Serial.println("Relay 2 ON");
+    } else if (request.indexOf("RELAY2=0") != -1) {
+      digitalWrite(relayPin2, LOW);  // Relay 2 OFF
+      Serial.println("Relay 2 OFF");
+    }
+    // Generate HTML Webpage
+    String html = "<!DOCTYPE html><html>";
+    html += "<head><title>ESP32 LoRa Relay Control</title></head>";
+    html += "<body style='font-family:Arial;text-align:center;margin-top:50px;'>";
+    html += "<h2>ESP32 LoRa Relay Control</h2>";
+    html += "<form action='/' method='get'>";
+    html += "Relay 1 status (0=OFF, 1=ON):<br><input type='text' name='RELAY1' placeholder='0 or 1'><br><br>";
+    html += "Relay 2 status (0=OFF, 1=ON):<br><input type='text' name='RELAY2' placeholder='0 or 1'><br><br>";
+    html += "<input type='submit' value='Submit'>";
+    html += "</form></body></html>";
+    // Send HTTP header
+    client.println("HTTP/1.1 200 OK");
+    client.println("Content-Type: text/html");
+    client.println("Connection: close");
+    client.println();
+    client.println(html);
+    delay(10);  // brief delay for sending data
+    client.stop();
+    Serial.println("Client disconnected.");
+  }
+}
+
+
+Lora = fastest input and output 2 relays
+
+#include <WiFi.h>
+// Replace with your mobile hotspot credentials
+const char* ssid = "raj";
+const char* pass = "12345678";
+// GPIO pin definitions for Relays
+const int relayPin1 = 7; // GPIO pin 7
+const int relayPin2 = 6; // GPIO pin 6
+WiFiServer server(80);
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+  // Setup relay pins as digital outputs
+  pinMode(relayPin1, OUTPUT);
+  pinMode(relayPin2, OUTPUT);
+  digitalWrite(relayPin1, LOW); // Initially OFF
+  digitalWrite(relayPin2, LOW); // Initially OFF
+  Serial.print("Connecting to hotspot...");
+  WiFi.begin(ssid, pass);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nWiFi Connected!");
+  Serial.print("ESP32 LoRa V3 IP address: ");
+  Serial.println(WiFi.localIP());
+  server.begin();
+}
+void loop() {
+  WiFiClient client = server.available();
+  if (client) {
+    Serial.println("New client connected.");
+    String request = client.readStringUntil('\r');
+    client.flush();
+    Serial.println(request);
+    // Ignore favicon.ico request
+    if (request.indexOf("favicon.ico") != -1 || request.length() < 5) {
+      client.stop();
+      Serial.println("Favicon request ignored.");
+      return;
+    }
+    // Check request for Relay control
+    if (request.indexOf("RELAY1=1") != -1) {
+      digitalWrite(relayPin1, HIGH); // Relay 1 ON
+      Serial.println("Relay 1 ON");
+    } else if (request.indexOf("RELAY1=0") != -1) {
+      digitalWrite(relayPin1, LOW);  // Relay 1 OFF
+      Serial.println("Relay 1 OFF");
+    }
+    if (request.indexOf("RELAY2=1") != -1) {
+      digitalWrite(relayPin2, HIGH); // Relay 2 ON
+      Serial.println("Relay 2 ON");
+    } else if (request.indexOf("RELAY2=0") != -1) {
+      digitalWrite(relayPin2, LOW);  // Relay 2 OFF
+      Serial.println("Relay 2 OFF");
+    }
+    // Generate HTML Webpage
+    String html = "<!DOCTYPE html><html>";
+    html += "<head><title>ESP32 LoRa Relay Control</title></head>";
+    html += "<body style='font-family:Arial;text-align:center;margin-top:50px;'>";
+    html += "<h2>ESP32 LoRa Relay Control</h2>";
+    html += "<form action='/' method='get'>";
+    html += "Relay 1 status (0=OFF, 1=ON):<br><input type='text' name='RELAY1' placeholder='0 or 1'><br><br>";
+    html += "Relay 2 status (0=OFF, 1=ON):<br><input type='text' name='RELAY2' placeholder='0 or 1'><br><br>";
+    html += "<input type='submit' value='Submit'>";
+    html += "</form></body></html>";
+    // Send HTTP header
+    client.println("HTTP/1.1 200 OK");
+    client.println("Content-Type: text/html");
+    client.println("Connection: close");
+    client.println();
+    client.println(html);
+    delay(10);  // brief delay for sending data
+    client.stop();
+    Serial.println("Client disconnected.");
+  }
+}
+
